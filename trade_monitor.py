@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 PRISMA GROUP Trade Monitor -> Telegram Notifier
-Polls trades every 12s and sends Telegram alerts on new/updated trades.
-Run with: python3 trade_monitor.py
+Optimized for GitHub Actions: runs for ~9 minutes, checks every 12s.
+State is passed via environment variable between runs using GitHub Actions cache.
 """
 
 import os, sys, json, time, html, signal
@@ -11,11 +11,12 @@ import requests
 
 # ── CONFIG ──────────────────────────────────────────────────────────────────
 API_URL            = "https://api.prismagroup.online/api/trades/recent?limit=500&period=current_week"
-TELEGRAM_BOT_TOKEN = "8680977751:AAFYsHHfBD0cRzkSqxy9uXHcGiSKwxa8gzU"
-TELEGRAM_CHAT_ID   = "8687130745"
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 POLL_SECONDS       = 12
 REQUEST_TIMEOUT    = 15
-STATE_FILE         = Path("trade_state.json")
+RUN_DURATION       = 8 * 60   # run for 8 minutes, then exit cleanly
+STATE_FILE         = Path(os.environ.get("STATE_FILE", "trade_state.json"))
 WATCH_FIELDS       = ["status", "profit_dollars", "profit_percentage",
                       "highest_price", "exit_price", "profit_per_contract"]
 # ────────────────────────────────────────────────────────────────────────────
@@ -26,7 +27,7 @@ def log(msg):
 def send_telegram(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text,
-                "parse_mode": "HTML", "disable_web_page_preview": True}
+               "parse_mode": "HTML", "disable_web_page_preview": True}
     try:
         r = requests.post(url, json=payload, timeout=REQUEST_TIMEOUT)
         if r.status_code != 200:
@@ -96,14 +97,14 @@ def msg_new_trade(t):
 
 def msg_updated_trade(t, changes):
     status = str(t.get("status", "")).upper()
-    if status == "WIN":                               icon = "✅"
-    elif status in ("LOSS","LOSE","STOP","STOPPED"):  icon = "🔴"
-    else:                                             icon = "🔄"
+    if status == "WIN":                              icon = "✅"
+    elif status in ("LOSS","LOSE","STOP","STOPPED"): icon = "🔴"
+    else:                                            icon = "🔄"
     lines = [f"{icon} <b>TRADE UPDATED</b>", trade_header(t)]
     for field, (old, new) in changes.items():
-        if field == "profit_dollars":       old_s, new_s = fmt_money(old), fmt_money(new)
-        elif field == "profit_percentage":  old_s, new_s = fmt_pct(old), fmt_pct(new)
-        else:                               old_s, new_s = html.escape(str(old)), html.escape(str(new))
+        if field == "profit_dollars":      old_s, new_s = fmt_money(old), fmt_money(new)
+        elif field == "profit_percentage": old_s, new_s = fmt_pct(old), fmt_pct(new)
+        else:                              old_s, new_s = html.escape(str(old)), html.escape(str(new))
         lines.append(f"{field.replace('_',' ').title()}: {old_s} → {new_s}")
     return "\n".join(lines)
 
@@ -115,6 +116,10 @@ def diff_changes(old_trade, new_trade):
     return changes
 
 def run():
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        log("ERROR: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set.")
+        sys.exit(1)
+
     state     = load_state()
     first_run = len(state) == 0
 
@@ -125,13 +130,19 @@ def run():
     signal.signal(signal.SIGINT,  handle_sig)
     signal.signal(signal.SIGTERM, handle_sig)
 
-    log(f"Starting. Polling every {POLL_SECONDS}s. State file: {STATE_FILE.resolve()}")
+    start_time = time.time()
+    log(f"Starting. Polling every {POLL_SECONDS}s for {RUN_DURATION//60} minutes.")
     if first_run:
         log("First run: recording current trades silently (no backlog spam).")
 
     consecutive_failures = 0
 
     while not stop["flag"]:
+        # Exit cleanly before GitHub Actions kills us
+        if time.time() - start_time >= RUN_DURATION:
+            log("Run duration reached, exiting cleanly.")
+            break
+
         trades = fetch_trades()
 
         if trades is None:
