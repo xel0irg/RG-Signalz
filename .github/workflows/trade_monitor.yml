@@ -2,16 +2,23 @@ name: Trade Monitor
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # runs every 10 minutes
-  workflow_dispatch:           # lets you trigger it manually too
+    - cron: '*/10 * * * *'  # every 10 minutes
+  workflow_dispatch:          # manual trigger button in GitHub UI
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 9         # stays within the 10-min window safely
+    timeout-minutes: 9
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Restore trade state cache
+        uses: actions/cache@v4
+        with:
+          path: trade_state.json
+          key: trade-state-persistent
+          restore-keys: trade-state-persistent
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,8 +28,15 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run trade monitor
+      - name: Run trade monitor (8 min)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python trade_monitor.py
+
+      - name: Save trade state cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: trade_state.json
+          key: trade-state-persistent
