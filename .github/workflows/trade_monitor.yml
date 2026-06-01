@@ -1,0 +1,28 @@
+name: Trade Monitor
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # runs every 10 minutes
+  workflow_dispatch:           # lets you trigger it manually too
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9         # stays within the 10-min window safely
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run trade monitor
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python trade_monitor.py
