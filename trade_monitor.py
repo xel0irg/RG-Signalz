@@ -15,7 +15,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 POLL_SECONDS       = 12
 REQUEST_TIMEOUT    = 15
-RUN_DURATION       = 30 * 60   # run for 8 minutes, then exit cleanly
+RUN_DURATION       = 30 * 60   # run for 30 minutes, then exit cleanly
 STATE_FILE         = Path(os.environ.get("STATE_FILE", "trade_state.json"))
 WATCH_FIELDS       = ["status", "profit_dollars", "profit_percentage",
                       "highest_price", "exit_price", "profit_per_contract"]
