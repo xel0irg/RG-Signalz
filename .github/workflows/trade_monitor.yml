@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run trade monitor (8 min)
+      - name: Run trade monitor (30 min)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
