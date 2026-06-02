@@ -8,7 +8,7 @@ on:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 59
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run trade monitor (30 min)
+      - name: Run trade monitor (59 min)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
