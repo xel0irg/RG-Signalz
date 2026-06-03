@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
 PRISMA GROUP Trade Monitor -> Telegram Notifier
-Optimized for GitHub Actions: runs for ~59 minutes, checks every 12s.
-State is passed via environment variable between runs using GitHub Actions cache.
+Runs for the full trading day (9AM - 4:30PM EST), polling every 12 seconds.
 """
 
 import os, sys, json, time, html, signal
@@ -15,7 +14,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 POLL_SECONDS       = 12
 REQUEST_TIMEOUT    = 15
-RUN_DURATION       = 59 * 60   # run for 59 minutes, then exit cleanly
+RUN_DURATION       = 27000  # 7.5 hours = full trading day (9AM to 4:30PM EST)
 STATE_FILE         = Path(os.environ.get("STATE_FILE", "trade_state.json"))
 WATCH_FIELDS       = ["status", "profit_dollars", "profit_percentage",
                       "highest_price", "exit_price", "profit_per_contract"]
@@ -131,16 +130,15 @@ def run():
     signal.signal(signal.SIGTERM, handle_sig)
 
     start_time = time.time()
-    log(f"Starting. Polling every {POLL_SECONDS}s for {RUN_DURATION//60} minutes.")
+    log(f"Starting. Polling every {POLL_SECONDS}s for {RUN_DURATION//3600:.1f} hours.")
     if first_run:
         log("First run: recording current trades silently (no backlog spam).")
 
     consecutive_failures = 0
 
     while not stop["flag"]:
-        # Exit cleanly before GitHub Actions kills us
         if time.time() - start_time >= RUN_DURATION:
-            log("Run duration reached, exiting cleanly.")
+            log("Trading day complete, exiting cleanly.")
             break
 
         trades = fetch_trades()
