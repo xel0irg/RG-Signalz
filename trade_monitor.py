@@ -34,7 +34,7 @@ DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
 POLL_SECONDS    = 12
 REQUEST_TIMEOUT = 15
-RUN_DURATION    = 59 * 60  # 59 minutes per run
+RUN_DURATION    = 27000  # 7.5 hours = full trading day (9AM to 4:30PM EST)
 STATE_FILE      = Path(os.environ.get("STATE_FILE", "trade_state.json"))
 
 WATCH_FIELDS = ["status", "profit_dollars", "profit_percentage",
@@ -70,7 +70,6 @@ def send_discord(text):
     """Send a message to Discord. Returns True on success."""
     if not DISCORD_WEBHOOK_URL:
         return False
-    # Convert HTML formatting to Discord markdown
     clean = text
     clean = clean.replace("<b>", "**").replace("</b>", "**")
     clean = clean.replace("<i>", "*").replace("</i>", "*")
@@ -218,7 +217,7 @@ def run():
 
     while not stop["flag"]:
         if time.time() - start_time >= RUN_DURATION:
-            log("Run duration reached, exiting cleanly.")
+            log("Trading day complete, exiting cleanly.")
             break
 
         trades = fetch_trades()
